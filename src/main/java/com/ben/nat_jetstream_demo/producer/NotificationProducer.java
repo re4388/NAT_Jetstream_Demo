@@ -29,9 +29,4 @@ public class NotificationProducer {
         NotificationMessage message = NotificationMessage.create(title, name, content);
         return publish(message);
     }
-
-    public String sendWithTags(String title, String name, String content, List<String> tags) {
-        NotificationMessage message = NotificationMessage.createWithTags(title, name, content, tags);
-        return publish(message);
-    }
 }

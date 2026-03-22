@@ -35,7 +35,9 @@ public class NatsJetStreamConsumerRegistry implements JetStreamConsumerRegistry 
     }
 
     @Override
-    public <T> void subscribe(String subject, String durable, Class<T> payloadType,
+    public <T> void subscribe(String subject,
+                              String durable,
+                              Class<T> payloadType,
                               ReliableMessageHandler<T> handler) {
         if (connection == null || jetStream == null) {
             log.warn("[ConsumerRegistry] NATS not available, skipping subscription for {}", subject);
