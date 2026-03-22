@@ -95,7 +95,7 @@ public class NatsConfig {
             StreamConfiguration sc = StreamConfiguration.builder()
                     .name(streamName)
                     .subjects(subject)
-                    .retentionPolicy(io.nats.client.api.RetentionPolicy.WorkQueue)
+                    .retentionPolicy(io.nats.client.api.RetentionPolicy.Limits)
                     .maxConsumers(10)
                     .maxMessages(-1)
                     .maxBytes(-1)
