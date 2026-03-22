@@ -1,5 +1,6 @@
 package com.ben.nat_jetstream_demo.config;
 
+import com.ben.nat_jetstream_demo.model.MessageEnvelope;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.nats.client.JetStream;
 import io.nats.client.impl.Headers;
@@ -11,8 +12,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
-import java.lang.reflect.Method;
 
 @Component
 public class NatsJetStreamClient implements JetStreamClient {
@@ -23,6 +22,9 @@ public class NatsJetStreamClient implements JetStreamClient {
 
     @Value("${nats.subject:notifications.test}")
     private String defaultSubject;
+
+    @Value("${spring.application.name:nat-jetstream-demo}")
+    private String appName;
 
     public NatsJetStreamClient(JetStream jetStream, ObjectMapper objectMapper) {
         this.jetStream = jetStream;
@@ -42,6 +44,7 @@ public class NatsJetStreamClient implements JetStreamClient {
     private class NatsPublishRequestBuilder implements PublishRequestBuilder {
         private final String subject;
         private Object payload;
+        private MessageEnvelope<?> envelope;
         private final Map<String, String> headersMap = new HashMap<>();
 
         public NatsPublishRequestBuilder(String subject) {
@@ -51,6 +54,12 @@ public class NatsJetStreamClient implements JetStreamClient {
         @Override
         public PublishRequestBuilder payload(Object payload) {
             this.payload = payload;
+            return this;
+        }
+
+        @Override
+        public PublishRequestBuilder envelope(MessageEnvelope<?> envelope) {
+            this.envelope = envelope;
             return this;
         }
 
@@ -75,8 +84,8 @@ public class NatsJetStreamClient implements JetStreamClient {
                     throw new IllegalStateException("NATS JetStream is not available");
                 }
 
-                ensureMetadata(payload);
-                byte[] data = objectMapper.writeValueAsBytes(payload);
+                MessageEnvelope<?> finalEnvelope = (envelope != null) ? envelope : MessageEnvelope.wrap(payload, appName);
+                byte[] data = objectMapper.writeValueAsBytes(finalEnvelope);
                 
                 Headers natsHeaders = new Headers();
                 headersMap.forEach(natsHeaders::add);
@@ -87,41 +96,12 @@ public class NatsJetStreamClient implements JetStreamClient {
                         .data(data)
                         .build());
 
-                String msgId = extractMessageId(payload);
-                log.info("[JetStreamClient] Published to {}: id={}, seq={}", subject, msgId, ack.getSeqno());
+                String msgId = finalEnvelope.getMetadata().getId();
+                log.info("[JetStreamClient] Wrapped & Published to {}: id={}, seq={}", subject, msgId, ack.getSeqno());
                 return msgId;
             } catch (Exception e) {
                 log.error("[JetStreamClient] Failed to publish message: {}", e.getMessage());
                 throw new RuntimeException("Messaging failure", e);
-            }
-        }
-
-        private void ensureMetadata(Object obj) {
-            try {
-                Class<?> clazz = obj.getClass();
-                trySet(obj, clazz, "setMessageId", String.class, UUID.randomUUID().toString());
-                trySet(obj, clazz, "setTimestamp", java.time.Instant.class, java.time.Instant.now());
-            } catch (Exception ignored) {}
-        }
-
-        private void trySet(Object target, Class<?> clazz, String methodName, Class<?> paramType, Object value) {
-            try {
-                String getterName = "get" + methodName.substring(3);
-                Method getter = clazz.getMethod(getterName);
-                if (getter.invoke(target) == null) {
-                    Method setter = clazz.getMethod(methodName, paramType);
-                    setter.invoke(target, value);
-                }
-            } catch (Exception ignored) {}
-        }
-
-        private String extractMessageId(Object obj) {
-            try {
-                Method getter = obj.getClass().getMethod("getMessageId");
-                Object val = getter.invoke(obj);
-                return val != null ? val.toString() : "unknown";
-            } catch (Exception e) {
-                return "unknown";
             }
         }
     }

@@ -1,6 +1,8 @@
 package com.ben.nat_jetstream_demo.consumer;
 
 import com.ben.nat_jetstream_demo.config.JetStreamConsumerRegistry;
+import com.ben.nat_jetstream_demo.config.ReliableMessageHandler;
+import com.ben.nat_jetstream_demo.model.MessageMetadata;
 import com.ben.nat_jetstream_demo.model.NotificationMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,24 +36,30 @@ public class DlqConsumer {
     public ApplicationRunner startDlqConsumer() {
         return args -> {
             // DLQ monitor is special: it just views the failures
-            consumerRegistry.subscribe(dlqSubject, "dlq-monitor-durable", NotificationMessage.class, notification -> {
-                DlqEntry entry = new DlqEntry(
-                        notification.getMessageId(),
-                        notification.getCorrelationId(),
-                        notification.getTitle(),
-                        notification.getContent(),
-                        notification.getLastError(),
-                        notification.getRetryCount(),
-                        Instant.now()
-                );
+            consumerRegistry.subscribe(dlqSubject, "dlq-monitor-durable", NotificationMessage.class, new ReliableMessageHandler<NotificationMessage>() {
+                @Override
+                public void handle(NotificationMessage notification) throws Exception {}
 
-                dlqMessages.add(entry);
-                int count = dlqCount.incrementAndGet();
+                @Override
+                public void handle(NotificationMessage notification, MessageMetadata metadata) throws Exception {
+                    DlqEntry entry = new DlqEntry(
+                            metadata.getId(),
+                            metadata.getCorrelationId(),
+                            notification.getTitle(),
+                            notification.getContent(),
+                            notification.getLastError(),
+                            notification.getRetryCount(),
+                            Instant.now()
+                    );
 
-                log.warn("[DlqConsumer] === DLQ ALERT ===");
-                log.warn("[DlqConsumer] ID: {}, Title: {}, Error: {}, Retry: {}, Total: {}",
-                        entry.messageId, entry.title, entry.lastError, entry.retryCount, count);
-                log.warn("[DlqConsumer] =====================");
+                    dlqMessages.add(entry);
+                    int count = dlqCount.incrementAndGet();
+
+                    log.warn("[DlqConsumer] === DLQ ALERT ===");
+                    log.warn("[DlqConsumer] ID: {}, Title: {}, Error: {}, Retry: {}, Total: {}",
+                            entry.messageId, entry.title, entry.lastError, entry.retryCount, count);
+                    log.warn("[DlqConsumer] =====================");
+                }
             });
         };
     }

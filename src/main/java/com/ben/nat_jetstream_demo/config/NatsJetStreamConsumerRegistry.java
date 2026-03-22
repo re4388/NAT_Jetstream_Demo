@@ -1,5 +1,9 @@
 package com.ben.nat_jetstream_demo.config;
 
+import com.ben.nat_jetstream_demo.model.MessageEnvelope;
+import com.ben.nat_jetstream_demo.model.MessageMetadata;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.nats.client.*;
 import org.slf4j.Logger;
@@ -64,14 +68,33 @@ public class NatsJetStreamConsumerRegistry implements JetStreamConsumerRegistry 
     }
 
     private <T> void handleIncomingMessage(Message msg,
-                                           Class<T> payloadType, ReliableMessageHandler<T> handler) {
+                                           Class<T> payloadType, 
+                                           ReliableMessageHandler<T> handler) {
         T payload = null;
+        MessageMetadata metadata = null;
         try {
             String rawData = new String(msg.getData(), StandardCharsets.UTF_8);
-            payload = objectMapper.readValue(rawData, payloadType);
+            
+            // Try to detect if it's an envelope or raw payload
+            JsonNode node = objectMapper.readTree(rawData);
+            if (node.has("metadata") && node.has("data")) {
+                // It's an envelope
+                MessageEnvelope<T> envelope = objectMapper.readValue(rawData, 
+                    objectMapper.getTypeFactory().constructParametricType(MessageEnvelope.class, payloadType));
+                payload = envelope.getData();
+                metadata = envelope.getMetadata();
+            } else {
+                // Fallback to direct mapping for backward compatibility or different senders
+                payload = objectMapper.readValue(rawData, payloadType);
+                // Synthesize basic metadata
+                metadata = new MessageMetadata();
+                metadata.setId("legacy-" + msg.metaData().streamSequence());
+                metadata.setTimestamp(java.time.Instant.now());
+                metadata.setType(payloadType.getSimpleName());
+            }
 
-            // Execute business logic
-            handler.handle(payload);
+            // Execute business logic with metadata
+            handler.handle(payload, metadata);
             
             // Success -> Ack
             msg.ack();
@@ -84,20 +107,16 @@ public class NatsJetStreamConsumerRegistry implements JetStreamConsumerRegistry 
 
     private void handleFailure(Message msg, Object payload, String error) {
         try {
-            // Check delivery count
-            // NATS Message.metaData().deliveredCount() provides delivery info
             long delivered = msg.metaData().deliveredCount();
             
             if (delivered >= maxDeliver) {
                 log.warn("[ConsumerRegistry] Max deliver reached ({}). Moving to DLQ.", delivered);
                 if (payload != null) {
-                    // Try to attach error info if possible (simplified for now)
                     jetStreamClient.publishTo(dlqSubject).payload(payload).go();
                 } else {
-                    // If parsing failed, just move raw bytes
                     jetStream.publish(dlqSubject, msg.getData());
                 }
-                msg.ack(); // Remove from source stream
+                msg.ack();
             } else {
                 log.info("[ConsumerRegistry] Nak sent for redelivery (Attempt {})", delivered);
                 msg.nak();

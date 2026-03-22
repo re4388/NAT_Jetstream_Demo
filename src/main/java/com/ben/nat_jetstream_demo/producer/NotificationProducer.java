@@ -6,8 +6,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-
 @Service
 public class NotificationProducer {
     private static final Logger log = LoggerFactory.getLogger(NotificationProducer.class);
@@ -19,9 +17,7 @@ public class NotificationProducer {
     }
 
     public String publish(NotificationMessage message) {
-        if (message.getSource() == null) {
-            message.setSource("producer");
-        }
+        // Source will be automatically added by JetStreamClient via MessageEnvelope
         return jetStreamClient.publish(message);
     }
 
