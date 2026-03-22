@@ -10,6 +10,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -18,8 +20,8 @@ import jakarta.annotation.PostConstruct;
 import java.time.Duration;
 
 @Configuration
-@Slf4j
 public class NatsConfig {
+    private static final Logger log = LoggerFactory.getLogger(NatsConfig.class);
 
     @Value("${nats.url}")
     private String natsUrl;

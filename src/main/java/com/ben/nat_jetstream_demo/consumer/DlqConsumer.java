@@ -4,10 +4,11 @@ import com.ben.nat_jetstream_demo.config.NatsConfig;
 import com.ben.nat_jetstream_demo.model.NotificationMessage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.nats.client.*;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -17,8 +18,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
-@Slf4j
 public class DlqConsumer {
+    private static final Logger log = LoggerFactory.getLogger(DlqConsumer.class);
 
     private final NatsConfig natsConfig;
     private final ObjectMapper objectMapper;
@@ -34,7 +35,7 @@ public class DlqConsumer {
         this.objectMapper = objectMapper;
     }
 
-    @org.springframework.context.annotation.Bean
+    @Bean
     public ApplicationRunner startDlqConsumer() {
         return args -> {
             Connection connection = natsConfig.natsConnection();
@@ -76,15 +77,15 @@ public class DlqConsumer {
         try {
             NotificationMessage notification = objectMapper.readValue(payload, NotificationMessage.class);
 
-            DlqEntry entry = DlqEntry.builder()
-                    .messageId(notification.getMessageId())
-                    .correlationId(notification.getCorrelationId())
-                    .title(notification.getTitle())
-                    .content(notification.getContent())
-                    .lastError(notification.getLastError())
-                    .retryCount(notification.getRetryCount())
-                    .arrivedAt(Instant.now())
-                    .build();
+            DlqEntry entry = new DlqEntry(
+                notification.getMessageId(),
+                notification.getCorrelationId(),
+                notification.getTitle(),
+                notification.getContent(),
+                notification.getLastError(),
+                notification.getRetryCount(),
+                Instant.now()
+            );
 
             dlqMessages.add(entry);
             int count = dlqCount.incrementAndGet();
@@ -118,10 +119,6 @@ public class DlqConsumer {
         log.info("[DlqConsumer] DLQ history cleared");
     }
 
-    @lombok.Data
-    @lombok.Builder
-    @lombok.NoArgsConstructor
-    @lombok.AllArgsConstructor
     public static class DlqEntry {
         private String messageId;
         private String correlationId;
@@ -130,5 +127,25 @@ public class DlqConsumer {
         private String lastError;
         private Integer retryCount;
         private Instant arrivedAt;
+
+        public DlqEntry() {}
+
+        public DlqEntry(String messageId, String correlationId, String title, String content, String lastError, Integer retryCount, Instant arrivedAt) {
+            this.messageId = messageId;
+            this.correlationId = correlationId;
+            this.title = title;
+            this.content = content;
+            this.lastError = lastError;
+            this.retryCount = retryCount;
+            this.arrivedAt = arrivedAt;
+        }
+
+        public String getMessageId() { return messageId; }
+        public String getCorrelationId() { return correlationId; }
+        public String getTitle() { return title; }
+        public String getContent() { return content; }
+        public String getLastError() { return lastError; }
+        public Integer getRetryCount() { return retryCount; }
+        public Instant getArrivedAt() { return arrivedAt; }
     }
 }

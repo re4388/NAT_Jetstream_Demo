@@ -1,7 +1,8 @@
 package com.ben.nat_jetstream_demo.service;
 
 import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -10,8 +11,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
-@Slf4j
 public class ChaosService {
+    private static final Logger log = LoggerFactory.getLogger(ChaosService.class);
     
     private final AtomicBoolean failureEnabled = new AtomicBoolean(false);
     private final AtomicInteger failureCount = new AtomicInteger(0);
@@ -91,20 +92,30 @@ public class ChaosService {
     }
     
     public ChaosStatus getStatus() {
-        return ChaosStatus.builder()
-                .failureEnabled(failureEnabled.get())
-                .failureCount(failureCount.get())
-                .maxFailures(maxFailures.get())
-                .failureKeywords(List.copyOf(failureKeywords.keySet()))
-                .build();
+        return new ChaosStatus(
+            this.failureEnabled.get(),
+            this.failureCount.get(),
+            this.maxFailures.get(),
+            List.copyOf(failureKeywords.keySet())
+        );
     }
     
-    @Getter
-    @lombok.Builder
     public static class ChaosStatus {
-        private boolean failureEnabled;
-        private int failureCount;
-        private int maxFailures;
-        private List<String> failureKeywords;
+        private final boolean failureEnabled;
+        private final int failureCount;
+        private final int maxFailures;
+        private final List<String> failureKeywords;
+
+        public ChaosStatus(boolean failureEnabled, int failureCount, int maxFailures, List<String> failureKeywords) {
+            this.failureEnabled = failureEnabled;
+            this.failureCount = failureCount;
+            this.maxFailures = maxFailures;
+            this.failureKeywords = failureKeywords;
+        }
+
+        public boolean isFailureEnabled() { return failureEnabled; }
+        public int getFailureCount() { return failureCount; }
+        public int getMaxFailures() { return maxFailures; }
+        public List<String> getFailureKeywords() { return failureKeywords; }
     }
 }

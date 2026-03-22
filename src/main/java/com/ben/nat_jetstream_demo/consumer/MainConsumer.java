@@ -1,11 +1,14 @@
 package com.ben.nat_jetstream_demo.consumer;
 
 import com.ben.nat_jetstream_demo.config.NatsConfig;
+import com.ben.nat_jetstream_demo.config.JetStreamClient;
 import com.ben.nat_jetstream_demo.model.NotificationMessage;
 import com.ben.nat_jetstream_demo.service.ChaosService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.nats.client.*;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationRunner;
@@ -15,10 +18,11 @@ import org.springframework.stereotype.Service;
 import java.nio.charset.StandardCharsets;
 
 @Service
-@Slf4j
 public class MainConsumer {
+    private static final Logger log = LoggerFactory.getLogger(MainConsumer.class);
 
     private final NatsConfig natsConfig;
+    private final JetStreamClient jetStreamClient;
     private final ObjectMapper objectMapper;
     private final ChaosService chaosService;
 
@@ -37,8 +41,9 @@ public class MainConsumer {
     private int processedCount = 0;
 
     @Autowired
-    public MainConsumer(NatsConfig natsConfig, ObjectMapper objectMapper, ChaosService chaosService) {
+    public MainConsumer(NatsConfig natsConfig, JetStreamClient jetStreamClient, ObjectMapper objectMapper, ChaosService chaosService) {
         this.natsConfig = natsConfig;
+        this.jetStreamClient = jetStreamClient;
         this.objectMapper = objectMapper;
         this.chaosService = chaosService;
     }
@@ -127,9 +132,9 @@ public class MainConsumer {
 
     private void sendToDlq(NotificationMessage notification) {
         try {
-            JetStream js = natsConfig.jetStream();
-            byte[] payload = objectMapper.writeValueAsBytes(notification);
-            js.publish(dlqSubject, payload);
+            jetStreamClient.publishTo(dlqSubject)
+                    .payload(notification)
+                    .go();
             log.info("[MainConsumer] Successfully sent message {} to DLQ", notification.getMessageId());
         } catch (Exception e) {
             log.error("[MainConsumer] Critical error: failed to send to DLQ: {}", e.getMessage());

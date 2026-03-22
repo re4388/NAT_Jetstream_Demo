@@ -2,16 +2,16 @@ package com.ben.nat_jetstream_demo.controller;
 
 import com.ben.nat_jetstream_demo.model.NotificationMessage;
 import com.ben.nat_jetstream_demo.producer.NotificationProducer;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/notifications")
-@Slf4j
 public class NotificationController {
+    private static final Logger log = LoggerFactory.getLogger(NotificationController.class);
 
     private final NotificationProducer producer;
 
@@ -20,45 +20,58 @@ public class NotificationController {
     }
 
     @PostMapping("/send")
-    public Map<String, Object> send(@RequestBody NotificationMessage message) throws Exception {
-        log.info("[API] Received send request: title={}", message.getTitle());
-        String messageId = producer.publish(message);
-        return Map.of(
-                "status", "sent",
-                "messageId", messageId
-        );
+    public Map<String, String> sendNotification(@RequestBody NotificationMessage message) {
+        try {
+            log.info("[API] Received notification request: {}", message.getTitle());
+            String messageId = producer.publish(message);
+            return Map.of(
+                    "status", "success",
+                    "messageId", messageId
+            );
+        } catch (Exception e) {
+            log.error("[API] Failed to send notification: {}", e.getMessage());
+            return Map.of(
+                    "status", "error",
+                    "message", e.getMessage()
+            );
+        }
     }
 
-    @PostMapping("/send/simple")
-    public Map<String, Object> sendSimple(
-            @RequestParam(defaultValue = "Test Title") String title,
-            @RequestParam(defaultValue = "Test User") String name,
-            @RequestParam String content) throws Exception {
-        log.info("[API] Received simple send request: title={}, content={}", title, content);
-        String messageId = producer.send(title, name, content);
-        return Map.of(
-                "status", "sent",
-                "messageId", messageId,
-                "title", title,
-                "content", content
-        );
+    @PostMapping("/quick-send")
+    public Map<String, String> quickSend(@RequestParam String title,
+                                         @RequestParam String name,
+                                         @RequestParam String content) {
+        try {
+            log.info("[API] Quick send request: {}", title);
+            String messageId = producer.send(title, name, content);
+            return Map.of(
+                    "status", "success",
+                    "messageId", messageId
+            );
+        } catch (Exception e) {
+            log.error("[API] Failed to send notification: {}", e.getMessage());
+            return Map.of(
+                    "status", "error",
+                    "message", e.getMessage()
+            );
+        }
     }
 
-    @PostMapping("/send/batch")
-    public Map<String, Object> sendBatch(
-            @RequestParam(defaultValue = "5") int count,
-            @RequestParam(defaultValue = "Batch Title") String title,
-            @RequestParam(defaultValue = "batch-content") String content) throws Exception {
-        log.info("[API] Received batch send request: count={}", count);
-        List<String> messageIds = new java.util.ArrayList<>();
+    @PostMapping("/test-bulk")
+    public Map<String, Object> sendBulk(@RequestParam(defaultValue = "10") int count) {
+        log.info("[API] Sending bulk notifications: {}", count);
+        int success = 0;
         for (int i = 0; i < count; i++) {
-            String id = producer.send(title + " #" + (i + 1), "BatchUser", content);
-            messageIds.add(id);
+            try {
+                producer.send("Bulk Test " + i, "System", "Bulk message content " + i);
+                success++;
+            } catch (Exception e) {
+                log.error("[API] Bulk send error at index {}: {}", i, e.getMessage());
+            }
         }
         return Map.of(
-                "status", "sent",
-                "count", count,
-                "messageIds", messageIds
+                "requested", count,
+                "successful", success
         );
     }
 }

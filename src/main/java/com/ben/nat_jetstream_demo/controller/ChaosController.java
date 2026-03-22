@@ -2,15 +2,16 @@ package com.ben.nat_jetstream_demo.controller;
 
 import com.ben.nat_jetstream_demo.consumer.DlqConsumer;
 import com.ben.nat_jetstream_demo.service.ChaosService;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/chaos")
-@Slf4j
 public class ChaosController {
+    private static final Logger log = LoggerFactory.getLogger(ChaosController.class);
 
     private final ChaosService chaosService;
     private final DlqConsumer dlqConsumer;
