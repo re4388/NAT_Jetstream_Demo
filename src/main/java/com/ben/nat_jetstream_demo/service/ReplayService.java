@@ -2,12 +2,9 @@ package com.ben.nat_jetstream_demo.service;
 
 import io.nats.client.Dispatcher;
 import io.nats.client.JetStream;
-import io.nats.client.JetStreamSubscription;
 import io.nats.client.PushSubscribeOptions;
 import io.nats.client.api.ConsumerConfiguration;
 import io.nats.client.api.DeliverPolicy;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,7 +13,6 @@ import org.springframework.stereotype.Service;
 import java.time.ZonedDateTime;
 
 @Service
-@RequiredArgsConstructor
 public class ReplayService {
     private static final Logger log = LoggerFactory.getLogger(ReplayService.class);
 
@@ -25,6 +21,11 @@ public class ReplayService {
 
     @Value("${nats.subject}")
     private String subject;
+
+    public ReplayService(JetStream jetStream, io.nats.client.Connection natsConnection) {
+        this.jetStream = jetStream;
+        this.natsConnection = natsConnection;
+    }
 
     public void replayFromSequence(long sequence) {
         log.info("[ReplayService] Starting replay from sequence: {}", sequence);

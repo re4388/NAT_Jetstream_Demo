@@ -12,10 +12,13 @@ import java.time.ZonedDateTime;
 
 @RestController
 @RequestMapping("/api/replay")
-@RequiredArgsConstructor
 public class ReplayController {
 
     private final ReplayService replayService;
+
+    public ReplayController(ReplayService replayService) {
+        this.replayService = replayService;
+    }
 
     @GetMapping("/sequence")
     public String replayBySequence(@RequestParam long seq) {

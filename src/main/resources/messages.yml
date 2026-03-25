@@ -1,0 +1,8 @@
+error:
+  internal: "An internal server error occurred."
+  missing_param: "Missing required parameter: {0}"
+  resource_not_found: "Resource with ID {0} not found."
+  bad_request: "The request is invalid."
+  internal_test: "An internal server error occurred for test purposes."
+success:
+  message: "Operation completed successfully."

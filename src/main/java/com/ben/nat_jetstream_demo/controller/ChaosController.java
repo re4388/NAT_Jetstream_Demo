@@ -22,7 +22,7 @@ public class ChaosController {
     }
 
     @PostMapping("/enable")
-    public Map<String, Object> enableFailure(@RequestParam(defaultValue = "FAIL") String keyword) {
+    public Map<String, Object> enableFailure(@RequestParam String keyword) {
         log.info("[API] Enabling failure mode with keyword: {}", keyword);
         chaosService.enableFailure();
         chaosService.addFailureKeyword(keyword, "Chaos mode triggered");
@@ -90,6 +90,9 @@ public class ChaosController {
 
     @PostMapping("/max-failures")
     public Map<String, Object> setMaxFailures(@RequestParam int max) {
+        if (max < 0) {
+            throw new com.ben.nat_jetstream_demo.exception.AppException("error.internal_test");
+        }
         log.info("[API] Setting max failures to: {}", max);
         chaosService.setMaxFailures(max);
         return Map.of(

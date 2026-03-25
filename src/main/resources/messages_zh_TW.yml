@@ -1,0 +1,8 @@
+error:
+  internal: "發生內部伺服器錯誤。"
+  missing_param: "缺少必要的參數: {0}"
+  resource_not_found: "找不到 ID 為 {0} 的資源。"
+  bad_request: "請求無效。"
+  internal_test: "這是為了測試目的而觸發的內部伺服器錯誤。"
+success:
+  message: "操作成功完成。"
